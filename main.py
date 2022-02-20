@@ -1,136 +1,106 @@
+import math
+
+import converters
 from CMYK import CMYK
 from HLS import HLS
 from XYZ import XYZ
+import tkinter as tk
+import re
 import numpy as np
 
+values = [[0 for i in range(0, 4)], [0 for i in range(0, 3)],
+          [0 for i in range(0, 3)]]
+window = tk.Tk()
 
-def from_CMYK_to_HLS(cmyk: CMYK):
-    r, g, b = from_CMYK_to_RGB(cmyk)
-    return from_RGB_to_HLS(r, g, b)
-
-
-def from_HLS_to_CMYK(hls: HLS):
-    r, g, b = from_HLS_to_RGB(hls)
-    return from_RGB_to_CMYK(r, g, b)
+inputs = [[tk.Entry(window) for i in range(0, 4)], [tk.Entry(window) for i in range(0, 3)],
+          [tk.Entry(window) for i in range(0, 3)]]
 
 
-def from_HLS_to_XYZ(hls: HLS):
-    r, g, b = from_HLS_to_RGB(hls)
-    return from_RGB_to_XYZ(r, g, b)
+def setValues(_values: [], _inputs: [], _new_values: [], ndigits: int = 0):
+    for i in range(0, len(_values)):
+        _values[i] = round(_new_values[i] * 100, ndigits)
+        _inputs[i].delete(0, tk.END)
+        _inputs[i].insert(0, str(_values[i]))
 
 
-def from_XYZ_to_HLS(xyz: XYZ):
-    r, g, b = from_XYZ_to_RGB(xyz)
-    if r > 255:
-        r = 255
-    if g > 255:
-        g = 255
-    if b > 255:
-        b = 255
-    return from_RGB_to_HLS(r, g, b)
+def clickII(event):
+    target: tk.Entry = event.widget
+    grid = target.grid_info()
+    _row = grid.get('row')
+    _column = grid.get('column')
+    _row = math.floor(_row / 2)
+    _column = math.floor(_column / 2)
+    valueStr: str = target.get()
 
+    try:
+        value = float(valueStr)
+    except ValueError:
+        return
+    if value != values[_row][_column]:
+        values[_row][_column] = value
+        if _row == 0:
+            cmyk = CMYK(values[0][0] / 100, values[0][1] / 100, values[0][2] / 100, values[0][3] / 100)
+            setValues(values[0], inputs[0], [cmyk.cyan, cmyk.magenta, cmyk.yellow, cmyk.key])
 
-def from_CMYK_to_RGB(cmyk: CMYK):
-    r = 255 * (1 - cmyk.cyan) * (1 - cmyk.key)
-    g = 255 * (1 - cmyk.magenta) * (1 - cmyk.key)
-    b = 255 * (1 - cmyk.yellow) * (1 - cmyk.key)
-    return round(r), round(g), round(b)
+            hls = converters.from_CMYK_to_HLS(cmyk)
+            setValues(values[1], inputs[1], [hls.hue / 100, hls.lightness, hls.saturation])
 
+            xyz = converters.from_HLS_to_XYZ(hls)
+            setValues(values[2], inputs[2], [xyz.x / 100, xyz.y / 100, xyz.z / 100], 4)
+        elif _row == 1:
+            hls = HLS(values[1][0] / 100, values[1][1] / 100, values[1][2] / 100)
+            setValues(values[1], inputs[1], [hls.hue / 100, hls.lightness, hls.saturation])
 
-def from_RGB_to_CMYK(r, g, b):
-    k = min(1 - r / 255., 1 - g / 255., 1 - b / 255.)
-    c = (1 - r / 255. - k) / (1 - k)
-    m = (1 - g / 255. - k) / (1 - k)
-    y = (1 - b / 255. - k) / (1 - k)
-    return CMYK(c, m, y, k)
+            cmyk = converters.from_HLS_to_CMYK(hls)
+            setValues(values[0], inputs[0], [cmyk.cyan, cmyk.magenta, cmyk.yellow, cmyk.key])
 
-
-def from_RGB_to_HLS(r, g, b):
-    r /= 255.
-    g /= 255.
-    b /= 255.
-    high = max(r, g, b)
-    low = min(r, g, b)
-    h, s, l = ((high + low) / 2,) * 3
-
-    if high == low:
-        h = 0.0
-        s = 0.0
-    else:
-        d = high - low
-        s = d / (2 - high - low) if l > 0.5 else d / (high + low)
-        if high == r:
-            h = 60 * (((g - b) / d) % 6)
-        elif high == g:
-            h = 60 * ((b - r) / d + 2)
+            xyz = converters.from_HLS_to_XYZ(hls)
+            setValues(values[2], inputs[2], [xyz.x / 100, xyz.y / 100, xyz.z / 100], 4)
         else:
-            h = 60 * ((r - g) / d + 4)
-    return HLS(h, l, s)
+            xyz = XYZ(values[2][0], values[2][1], values[2][2])
+            setValues(values[2], inputs[2], [xyz.x / 100, xyz.y / 100, xyz.z / 100], 4)
 
+            hls = converters.from_XYZ_to_HLS(xyz)
+            setValues(values[1], inputs[1], [hls.hue / 100, hls.lightness, hls.saturation])
 
-def from_HLS_to_RGB(hls: HLS):
-    def value(_p, _q, _t):
-        _t += 1 if _t < 0 else 0
-        _t -= 1 if _t > 1 else 0
-        if _t < 1 / 6:
-            return _p + (_q - _p) * 6 * _t
-        if _t < 1 / 2:
-            return _q
-        if _t < 2 / 3:
-            _p + (_q - _p) * (2 / 3 - _t) * 6
-        return _p
-
-    lightness = hls.lightness
-    saturation = hls.saturation
-    hue = hls.hue / 360.
-    if saturation == 0:
-        return lightness, lightness, lightness
-    else:
-        q = 0
-        if lightness < 0.5:
-            q = lightness * (1 + saturation)
-        else:
-            q = lightness + saturation - lightness * saturation
-        p = 2 * lightness - q
-        r = value(p, q, hue + 1 / 3) * 255
-        g = value(p, q, hue) * 255
-        b = value(p, q, hue - 1 / 3) * 255
-        return round(r), round(g), round(b)
-
-
-def from_XYZ_to_RGB(xyz: XYZ):
-    r = 3.2404542 * xyz.x - 1.5371385 * xyz.y - 0.4985314 * xyz.z
-    g = -0.9692660 * xyz.x + 1.8760108 * xyz.y + 0.0415560 * xyz.z
-    b = 0.0556434 * xyz.x - 0.2040259 * xyz.y + 1.0572252 * xyz.z
-    return round(r * 255), round(g * 255), round(b * 255)
-
-
-def from_RGB_to_XYZ(r, g, b):
-    def __g(x):
-        if x >= 0.04045:
-            return ((x + 0.055) / 1.055) ** 2.4
-        else:
-            return x / 12.92
-
-    rn = __g(r / 255) * 100
-    gn = __g(g / 255) * 100
-    bn = __g(b / 255) * 100
-    m = np.array([
-        [0.412453, 0.357580, 0.180423],
-        [0.212671, 0.715160, 0.072169],
-        [0.019334, 0.119193, 0.950227]
-    ])
-    rgb = np.array([rn, gn, bn]).T
-    res = np.matmul(m, rgb)
-    return XYZ(res[0], res[1], res[2])
+            cmyk = converters.from_HLS_to_CMYK(hls)
+            setValues(values[0], inputs[0], [cmyk.cyan, cmyk.magenta, cmyk.yellow, cmyk.key])
 
 
 if __name__ == '__main__':
-    print(from_HLS_to_XYZ(HLS(359, 0.54, 0.50)))
-    print(from_HLS_to_XYZ(HLS(51, 0.22, 0.34)))
-    print(from_HLS_to_XYZ(HLS(45, 0.12, 0.09)))
+    window.title(" Color conversion app")
+    window.geometry("840x400")
+    cmykLabel = tk.Label(window, text="CMYK color value").grid(row=0)
+    cyanLabel = tk.Label(window, text="cyan:").grid(row=1, column=0)
+    magentaLabel = tk.Label(window, text="magenta:").grid(row=1, column=2)
+    yellowLabel = tk.Label(window, text="yellow:").grid(row=1, column=4)
+    keyLabel = tk.Label(window, text="key").grid(row=1, column=6)
 
-    print(from_XYZ_to_HLS(XYZ(0.4125, 0.2127, 0.01933)))
-    print(from_XYZ_to_HLS(XYZ(0.2022, 0.1043, 0.009478)))
+    hlsLabel = tk.Label(window, text="HLS color value").grid(row=2)
+    hLabel = tk.Label(window, text="hue:").grid(row=3, column=0)
+    lLabel = tk.Label(window, text="lightness:").grid(row=3, column=2)
+    sLabel = tk.Label(window, text="saturation:").grid(row=3, column=4)
 
+    xyzLabel = tk.Label(window, text="XYZ color value").grid(row=4)
+    xLabel = tk.Label(window, text="x:").grid(row=5, column=0)
+    yLabel = tk.Label(window, text="y:").grid(row=5, column=2)
+    zLabel = tk.Label(window, text="z:").grid(row=5, column=4)
 
+    row = 1
+    column = 1
+    for rowInputs in inputs:
+        for _input in rowInputs:
+            _input.grid(row=row, column=column)
+            _input.bind("<FocusOut>", lambda event, obj=_input: clickII(event))
+            column += 2
+        row += 2
+        column = 1
+
+    window.mainloop()
+    # print(from_HLS_to_XYZ(HLS(359, 0.54, 0.50)))
+    # print(from_HLS_to_XYZ(HLS(51, 0.22, 0.34)))
+    # print(from_HLS_to_XYZ(HLS(45, 0.12, 0.09)))
+    #
+    # print(from_XYZ_to_HLS(XYZ(0.4125, 0.2127, 0.01933)))
+    # print(from_XYZ_to_HLS(XYZ(0.2022, 0.1043, 0.009478)))
+    #
