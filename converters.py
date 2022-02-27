@@ -3,7 +3,6 @@ from HLS import HLS
 from XYZ import XYZ
 import numpy as np
 
-
 def from_CMYK_to_HLS(cmyk: CMYK):
     r, g, b = from_CMYK_to_RGB(cmyk)
     return from_RGB_to_HLS(r, g, b)
@@ -21,6 +20,7 @@ def from_HLS_to_XYZ(hls: HLS):
 
 def from_XYZ_to_HLS(xyz: XYZ):
     r, g, b = from_XYZ_to_RGB(xyz)
+    success = not (r < 0 or g < 0 or b < 0 or r > 255 or g > 255 or b > 255)
     if r > 255:
         r = 255
     if g > 255:
@@ -33,7 +33,7 @@ def from_XYZ_to_HLS(xyz: XYZ):
         g = 0
     if b < 0:
         b = 0
-    return from_RGB_to_HLS(r, g, b)
+    return from_RGB_to_HLS(r, g, b), success
 
 
 def from_CMYK_to_RGB(cmyk: CMYK):
