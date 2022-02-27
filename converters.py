@@ -45,6 +45,8 @@ def from_CMYK_to_RGB(cmyk: CMYK):
 
 def from_RGB_to_CMYK(r, g, b):
     k = min(1 - r / 255., 1 - g / 255., 1 - b / 255.)
+    if k == 1:
+        return CMYK(0, 0, 0, 1)
     c = (1 - r / 255. - k) / (1 - k)
     m = (1 - g / 255. - k) / (1 - k)
     y = (1 - b / 255. - k) / (1 - k)
