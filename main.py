@@ -121,7 +121,7 @@ def change_colors_value(_row):
         hls, converted_successfully = converters.from_XYZ_to_HLS(xyz)
         if not converted_successfully:
             warning = tk.Message(window, text="Cropping when converting colors")
-            warning.config(bg='red', font=('times', 18, 'italic'))
+            warning.config(bg='red', font=('times', 14, 'italic'))
             warning.grid(row=10)
         setValues(values[1], inputs[1], [hls.hue / 100, hls.lightness, hls.saturation])
 
